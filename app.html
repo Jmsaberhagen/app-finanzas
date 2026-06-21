@@ -304,7 +304,29 @@
     .nav{ overflow-x:auto; flex-wrap:nowrap; padding-bottom:4px; }
     .hero-amount{ font-size:36px; }
     .tile-grid{ grid-template-columns: repeat(2, 1fr); gap:12px; }
+  }  /* ===== TAB VIEWS ===== */
+  .tab-view{ animation: fadeIn .25s ease; }
+  @keyframes fadeIn{ from{ opacity:0; transform: translateY(6px); } to{ opacity:1; transform: translateY(0); } }
+
+  /* ===== FILTERS BAR ===== */
+  .filters-bar{ display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+  .filters-bar select{
+    background: var(--surface); border:1px solid var(--border); border-radius:9px;
+    padding:10px 14px; color: var(--text-primary); font-family: var(--font-body);
+    font-size:13px; outline:none; cursor:pointer; transition: border-color .2s ease;
   }
+  .filters-bar select:hover, .filters-bar select:focus{ border-color: var(--border-hover); }
+  .filters-bar select option{ background: var(--surface); }
+
+  .activity-row-actions{ display:flex; gap:6px; opacity:0; transition: opacity .15s ease; flex-shrink:0; }
+  .activity-row:hover .activity-row-actions{ opacity:1; }
+  .row-action-btn{
+    width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    background: rgba(255,255,255,0.05); border:1px solid var(--border); cursor:pointer;
+    font-size:13px; color: var(--text-secondary); transition: all .15s ease;
+  }
+  .row-action-btn:hover{ border-color: var(--green-bright); color: var(--green-bright); }
+  .row-action-btn.danger:hover{ border-color: var(--red); color: var(--red); }
 </style>
 </head>
 <body>
@@ -335,12 +357,15 @@
   </div>
 
   <div class="nav">
-    <div class="nav-pill active">Resumen</div>
-    <div class="nav-pill">Movimientos</div>
-    <div class="nav-pill">Categorías</div>
-    <div class="nav-pill">Metas</div>
-    <div class="nav-pill">Estadísticas</div>
+    <div class="nav-pill active" data-tab="resumen">Resumen</div>
+    <div class="nav-pill" data-tab="movimientos">Movimientos</div>
+    <div class="nav-pill" data-tab="categorias">Categorías</div>
+    <div class="nav-pill" data-tab="metas">Metas</div>
+    <div class="nav-pill" data-tab="estadisticas">Estadísticas</div>
   </div>
+
+  <!-- ===== VISTA: RESUMEN ===== -->
+  <div class="tab-view" id="view-resumen">
 
   <div class="hero-row">
     <div class="card hero-balance">
@@ -394,15 +419,84 @@
     <div class="activity-empty">Cargando movimientos...</div>
   </div>
 
+  </div>
+  <!-- ===== FIN VISTA RESUMEN ===== -->
+
+  <!-- ===== VISTA: MOVIMIENTOS ===== -->
+  <div class="tab-view hidden" id="view-movimientos">
+
+    <div class="filters-bar">
+      <select id="filtro-tipo">
+        <option value="todos">Todos los tipos</option>
+        <option value="gasto">Solo gastos</option>
+        <option value="ingreso">Solo ingresos</option>
+      </select>
+      <select id="filtro-categoria">
+        <option value="todas">Todas las categorías</option>
+      </select>
+      <select id="filtro-rango">
+        <option value="mes">Este mes</option>
+        <option value="todos">Todo el historial</option>
+      </select>
+    </div>
+
+    <div class="card activity-card" id="movimientos-list">
+      <div class="activity-empty">Cargando movimientos...</div>
+    </div>
+
+  </div>
+
+  <!-- ===== VISTA: CATEGORÍAS ===== -->
+  <div class="tab-view hidden" id="view-categorias">
+    <div class="section-title"><h2>Tus categorías</h2></div>
+    <div class="tile-grid" id="tile-grid-full"></div>
+  </div>
+
+  <!-- ===== VISTA: METAS ===== -->
+  <div class="tab-view hidden" id="view-metas">
+    <div class="card" style="padding:40px; text-align:center;">
+      <p style="color:var(--text-secondary); font-size:14px;">El módulo de metas de ahorro está en construcción. Pronto vas a poder fijar objetivos y seguir tu progreso acá.</p>
+    </div>
+  </div>
+
+  <!-- ===== VISTA: ESTADÍSTICAS ===== -->
+  <div class="tab-view hidden" id="view-estadisticas">
+    <div class="card" style="padding:40px; text-align:center;">
+      <p style="color:var(--text-secondary); font-size:14px;">Los gráficos de estadísticas están en construcción. Pronto vas a ver tu gasto por categoría y por mes.</p>
+    </div>
+  </div>
+
 </div>
 
 <button class="fab hidden" id="fab-add">+</button>
+
+<!-- ===== MODAL: CONFIRMAR BORRADO ===== -->
+<div class="modal-overlay hidden" id="modal-confirmar-borrado">
+  <div class="modal-box" style="max-width:360px;">
+    <div class="modal-header">
+      <h3>Borrar movimiento</h3>
+      <span class="modal-close" id="close-modal-borrar">&times;</span>
+    </div>
+    <p style="font-size:14px; color:var(--text-secondary); margin-bottom:20px; line-height:1.5;">
+      Esta acción no se puede deshacer. ¿Confirmás que querés borrar este movimiento?
+    </p>
+    <div style="display:flex; gap:10px;">
+      <button type="button" class="submit-btn" id="cancelar-borrado" style="background:rgba(255,255,255,0.06); color:var(--text-primary); box-shadow:none;">
+        <span class="btn-text">Cancelar</span>
+      </button>
+      <button type="button" class="submit-btn" id="confirmar-borrado" style="background:linear-gradient(150deg, #ff6b6e, var(--red)); box-shadow:0 8px 22px -6px rgba(0,0,0,0.5), 0 0 18px var(--red-glow); color:#fff;">
+        <span class="spinner-sm" style="border-top-color:#fff; border-color:rgba(255,255,255,0.3);"></span>
+        <span class="btn-text">Borrar</span>
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- ===== MODAL: AGREGAR MOVIMIENTO ===== -->
 <div class="modal-overlay hidden" id="modal-movimiento">
   <div class="modal-box">
     <div class="modal-header">
-      <h3>Nuevo movimiento</h3>
+      <h3 id="modal-mov-title">Nuevo movimiento</h3>
       <span class="modal-close" id="close-modal-mov">&times;</span>
     </div>
 
@@ -488,10 +582,13 @@
 
   let currentUser = null;
   let categorias = [];
-  let movimientos = [];
+  let movimientosMes = [];
+  let movimientosTodos = [];
   let selectedTipo = 'gasto';
   let selectedEmoji = EMOJI_OPTIONS[0];
   let selectedColor = COLOR_OPTIONS[0];
+  let editandoId = null;
+  let borrandoId = null;
 
   // ===== PROTECCIÓN DE SESIÓN =====
   async function init(){
@@ -528,15 +625,31 @@
     startOfMonth.setDate(1);
     const fechaInicio = startOfMonth.toISOString().slice(0,10);
 
-    const { data, error } = await sb.from('movimientos')
+    const { data: dataMes, error: errMes } = await sb.from('movimientos')
       .select('*')
       .gte('fecha', fechaInicio)
       .order('fecha', { ascending: false })
       .order('created_at', { ascending: false });
+    if (errMes){ console.error(errMes); } else { movimientosMes = dataMes || []; }
 
-    if (error){ console.error(error); return; }
-    movimientos = data || [];
+    const { data: dataTodos, error: errTodos } = await sb.from('movimientos')
+      .select('*')
+      .order('fecha', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (errTodos){ console.error(errTodos); } else { movimientosTodos = dataTodos || []; }
   }
+
+  // ===== NAVEGACIÓN ENTRE PESTAÑAS =====
+  function switchTab(tab){
+    document.querySelectorAll('.nav-pill').forEach(p => p.classList.toggle('active', p.dataset.tab === tab));
+    document.querySelectorAll('.tab-view').forEach(v => v.classList.add('hidden'));
+    document.getElementById('view-' + tab).classList.remove('hidden');
+    if (tab === 'movimientos') renderMovimientosView();
+    if (tab === 'categorias') renderCategoriasFull();
+  }
+  document.querySelectorAll('.nav-pill').forEach(pill => {
+    pill.addEventListener('click', () => switchTab(pill.dataset.tab));
+  });
 
   // ===== RENDER =====
   function renderAll(){
@@ -550,6 +663,7 @@
   }
 
   function renderResumen(){
+    const movimientos = movimientosMes;
     const ingresos = movimientos.filter(m => m.tipo === 'ingreso').reduce((s,m) => s + Number(m.monto), 0);
     const gastos = movimientos.filter(m => m.tipo === 'gasto').reduce((s,m) => s + Number(m.monto), 0);
     const balance = ingresos - gastos;
@@ -586,10 +700,10 @@
 
   function renderCategorias(){
     const grid = document.getElementById('tile-grid');
-    const totalGastos = movimientos.filter(m => m.tipo === 'gasto').reduce((s,m) => s + Number(m.monto), 0);
+    const totalGastos = movimientosMes.filter(m => m.tipo === 'gasto').reduce((s,m) => s + Number(m.monto), 0);
 
     grid.innerHTML = categorias.map(cat => {
-      const gastoCategoria = movimientos
+      const gastoCategoria = movimientosMes
         .filter(m => m.tipo === 'gasto' && m.categoria === cat.nombre)
         .reduce((s,m) => s + Number(m.monto), 0);
       const pct = totalGastos > 0 ? Math.round((gastoCategoria/totalGastos)*100) : 0;
@@ -613,7 +727,38 @@
     document.getElementById('btn-add-categoria').addEventListener('click', openModalCategoria);
   }
 
+  // Misma lógica que renderCategorias pero para la vista dedicada "Categorías" (usa todo el historial, no solo el mes)
+  function renderCategoriasFull(){
+    const grid = document.getElementById('tile-grid-full');
+    const totalGastos = movimientosTodos.filter(m => m.tipo === 'gasto').reduce((s,m) => s + Number(m.monto), 0);
+
+    grid.innerHTML = categorias.map(cat => {
+      const gastoCategoria = movimientosTodos
+        .filter(m => m.tipo === 'gasto' && m.categoria === cat.nombre)
+        .reduce((s,m) => s + Number(m.monto), 0);
+      const pct = totalGastos > 0 ? Math.round((gastoCategoria/totalGastos)*100) : 0;
+
+      return `
+        <div class="card tile" style="position:relative;">
+          <div class="tile-glyph" style="color:${cat.color}">${cat.icono}</div>
+          <div class="tile-name">${escapeHtml(cat.nombre)}</div>
+          <div class="tile-amount" style="color:${cat.color}">$${fmt(gastoCategoria)}</div>
+          <div class="tile-percent">${pct}% del gasto histórico</div>
+          <div class="tile-bar"><i style="width:${pct}%; background:${cat.color}"></i></div>
+        </div>
+      `;
+    }).join('') + `
+      <div class="card tile tile-add" id="btn-add-categoria-full">
+        <span style="font-size:22px; color:var(--text-secondary)">+</span>
+        <span>Nueva categoría</span>
+      </div>
+    `;
+
+    document.getElementById('btn-add-categoria-full').addEventListener('click', openModalCategoria);
+  }
+
   function renderActividad(){
+    const movimientos = movimientosMes;
     const list = document.getElementById('activity-list');
     if (movimientos.length === 0){
       list.innerHTML = '<div class="activity-empty">Todavía no registraste movimientos este mes. Tocá el botón + para empezar.</div>';
@@ -650,21 +795,126 @@
     return fecha.toLocaleDateString('es-AR', { day:'numeric', month:'short' });
   }
 
+  // ===== VISTA MOVIMIENTOS: filtros + listado completo con acciones =====
+  function poblarFiltroCategorias(){
+    const sel = document.getElementById('filtro-categoria');
+    const valorActual = sel.value;
+    sel.innerHTML = '<option value="todas">Todas las categorías</option>' +
+      categorias.map(c => `<option value="${escapeHtml(c.nombre)}">${c.icono} ${escapeHtml(c.nombre)}</option>`).join('');
+    if ([...sel.options].some(o => o.value === valorActual)) sel.value = valorActual;
+  }
+
+  function renderMovimientosView(){
+    poblarFiltroCategorias();
+
+    const tipo = document.getElementById('filtro-tipo').value;
+    const cat = document.getElementById('filtro-categoria').value;
+    const rango = document.getElementById('filtro-rango').value;
+
+    const fuente = rango === 'mes' ? movimientosMes : movimientosTodos;
+    let filtrados = fuente;
+    if (tipo !== 'todos') filtrados = filtrados.filter(m => m.tipo === tipo);
+    if (cat !== 'todas') filtrados = filtrados.filter(m => m.categoria === cat);
+
+    const list = document.getElementById('movimientos-list');
+    if (filtrados.length === 0){
+      list.innerHTML = '<div class="activity-empty">No hay movimientos que coincidan con estos filtros.</div>';
+      return;
+    }
+
+    list.innerHTML = filtrados.map(m => {
+      const c = categorias.find(c => c.nombre === m.categoria);
+      const icono = m.tipo === 'ingreso' ? '💰' : (c?.icono || '💸');
+      const fechaTexto = formatRelativeDate(m.fecha);
+      const signo = m.tipo === 'ingreso' ? '+' : '-';
+      const clase = m.tipo === 'ingreso' ? 'pos' : 'neg';
+
+      return `
+        <div class="activity-row">
+          <div class="activity-icon">${icono}</div>
+          <div class="activity-info">
+            <strong>${escapeHtml(m.descripcion || m.categoria)}</strong>
+            <span>${escapeHtml(m.categoria)} · ${fechaTexto}</span>
+          </div>
+          <div class="activity-amount ${clase}">${signo}$${fmt(m.monto)}</div>
+          <div class="activity-row-actions">
+            <div class="row-action-btn" data-edit="${m.id}" title="Editar">✎</div>
+            <div class="row-action-btn danger" data-delete="${m.id}" title="Borrar">✕</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    list.querySelectorAll('[data-edit]').forEach(btn => {
+      btn.addEventListener('click', () => openModalMovimiento(btn.dataset.edit));
+    });
+    list.querySelectorAll('[data-delete]').forEach(btn => {
+      btn.addEventListener('click', () => openModalBorrado(btn.dataset.delete));
+    });
+  }
+
+  document.getElementById('filtro-tipo').addEventListener('change', renderMovimientosView);
+  document.getElementById('filtro-categoria').addEventListener('change', renderMovimientosView);
+  document.getElementById('filtro-rango').addEventListener('change', renderMovimientosView);
+
+  // ===== MODAL: BORRAR MOVIMIENTO =====
+  function openModalBorrado(id){
+    borrandoId = id;
+    document.getElementById('modal-confirmar-borrado').classList.remove('hidden');
+  }
+  function closeModalBorrado(){
+    borrandoId = null;
+    document.getElementById('modal-confirmar-borrado').classList.add('hidden');
+  }
+  document.getElementById('close-modal-borrar').addEventListener('click', closeModalBorrado);
+  document.getElementById('cancelar-borrado').addEventListener('click', closeModalBorrado);
+  document.getElementById('confirmar-borrado').addEventListener('click', async () => {
+    if (!borrandoId) return;
+    const btn = document.getElementById('confirmar-borrado');
+    btn.disabled = true; btn.classList.add('loading');
+
+    const { error } = await sb.from('movimientos').delete().eq('id', borrandoId);
+
+    btn.disabled = false; btn.classList.remove('loading');
+    if (error){ console.error(error); closeModalBorrado(); return; }
+
+    await loadMovimientos();
+    renderAll();
+    renderMovimientosView();
+    closeModalBorrado();
+  });
+
   function escapeHtml(str){
     const div = document.createElement('div');
     div.textContent = str ?? '';
     return div.innerHTML;
   }
 
-  // ===== MODAL: MOVIMIENTO =====
-  function openModalMovimiento(){
-    document.getElementById('mov-fecha').value = new Date().toISOString().slice(0,10);
+  // ===== MODAL: MOVIMIENTO (alta y edición) =====
+  function openModalMovimiento(id){
+    editandoId = id || null;
+    const mov = editandoId ? movimientosTodos.find(m => m.id === editandoId) : null;
+
     document.getElementById('mov-categoria').innerHTML = categorias
       .map(c => `<option value="${escapeHtml(c.nombre)}">${c.icono} ${escapeHtml(c.nombre)}</option>`).join('');
-    setTipo('gasto');
+
+    if (mov){
+      document.getElementById('modal-mov-title').textContent = 'Editar movimiento';
+      document.getElementById('mov-monto').value = mov.monto;
+      document.getElementById('mov-descripcion').value = mov.descripcion || '';
+      document.getElementById('mov-fecha').value = mov.fecha;
+      setTipo(mov.tipo);
+      if (mov.tipo === 'gasto') document.getElementById('mov-categoria').value = mov.categoria;
+    } else {
+      document.getElementById('modal-mov-title').textContent = 'Nuevo movimiento';
+      document.getElementById('mov-fecha').value = new Date().toISOString().slice(0,10);
+      setTipo('gasto');
+    }
+
     document.getElementById('modal-movimiento').classList.remove('hidden');
   }
   function closeModalMovimiento(){
+    editandoId = null;
     document.getElementById('modal-movimiento').classList.add('hidden');
     document.getElementById('form-movimiento').reset();
     document.getElementById('alert-mov').className = 'modal-alert';
@@ -677,7 +927,7 @@
     document.getElementById('field-categoria').style.display = tipo === 'gasto' ? 'block' : 'none';
   }
 
-  document.getElementById('fab-add').addEventListener('click', openModalMovimiento);
+  document.getElementById('fab-add').addEventListener('click', () => openModalMovimiento());
   document.getElementById('close-modal-mov').addEventListener('click', closeModalMovimiento);
   document.getElementById('btn-tipo-gasto').addEventListener('click', () => setTipo('gasto'));
   document.getElementById('btn-tipo-ingreso').addEventListener('click', () => setTipo('ingreso'));
@@ -701,14 +951,10 @@
 
     btn.disabled = true; btn.classList.add('loading');
 
-    const { error } = await sb.from('movimientos').insert({
-      user_id: currentUser.id,
-      tipo: selectedTipo,
-      monto,
-      categoria,
-      descripcion: descripcion || null,
-      fecha
-    });
+    const payload = { tipo: selectedTipo, monto, categoria, descripcion: descripcion || null, fecha };
+    const { error } = editandoId
+      ? await sb.from('movimientos').update(payload).eq('id', editandoId)
+      : await sb.from('movimientos').insert({ ...payload, user_id: currentUser.id });
 
     btn.disabled = false; btn.classList.remove('loading');
 
@@ -720,8 +966,10 @@
 
     await loadMovimientos();
     renderAll();
+    renderMovimientosView();
     closeModalMovimiento();
   });
+
 
   // ===== MODAL: CATEGORÍA =====
   function openModalCategoria(){
