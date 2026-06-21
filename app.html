@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   :root{
     --bg: #0a0a0a;
@@ -297,6 +298,7 @@
   @media (max-width: 980px){
     .hero-row{ grid-template-columns: 1fr; }
     .tile-grid{ grid-template-columns: repeat(2, 1fr); }
+    #metas-grid{ grid-template-columns: repeat(2, 1fr) !important; }
   }
   @media (max-width: 600px){
     body{ padding: 16px 16px 90px; }
@@ -304,6 +306,7 @@
     .nav{ overflow-x:auto; flex-wrap:nowrap; padding-bottom:4px; }
     .hero-amount{ font-size:36px; }
     .tile-grid{ grid-template-columns: repeat(2, 1fr); gap:12px; }
+    #metas-grid{ grid-template-columns: 1fr !important; }
   }  /* ===== TAB VIEWS ===== */
   .tab-view{ animation: fadeIn .25s ease; }
   @keyframes fadeIn{ from{ opacity:0; transform: translateY(6px); } to{ opacity:1; transform: translateY(0); } }
@@ -327,6 +330,45 @@
   }
   .row-action-btn:hover{ border-color: var(--green-bright); color: var(--green-bright); }
   .row-action-btn.danger:hover{ border-color: var(--red); color: var(--red); }
+
+  /* ===== METAS ===== */
+  .meta-tile{
+    aspect-ratio: auto; padding:22px; display:flex; flex-direction:column; justify-content:space-between; gap:14px;
+    cursor:default;
+  }
+  .meta-tile-top{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .meta-tile-name{ font-family: var(--font-display); font-weight:600; font-size:15px; }
+  .meta-tile-actions{ display:flex; gap:6px; }
+  .meta-ring-wrap{ display:flex; align-items:center; justify-content:center; position:relative; }
+  .meta-tile-amounts{ font-size:12px; color: var(--text-secondary); text-align:center; }
+  .meta-tile-amounts b{ color: var(--text-primary); font-family: var(--font-display); font-size:16px; display:block; margin-bottom:2px; }
+  .meta-add-btn{
+    width:100%; margin-top:auto; background: transparent; border:1px dashed var(--border-hover);
+    border-radius:9px; padding:9px 0; color: var(--text-secondary); font-family: var(--font-display);
+    font-size:12px; letter-spacing:0.5px; text-transform:uppercase; cursor:pointer; transition: all .15s ease;
+  }
+  .meta-add-btn:hover{ border-color: var(--green-bright); color: var(--green-bright); }
+  .meta-complete-badge{
+    font-size:11px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase;
+    background: rgba(60,201,60,0.12); color: var(--green-bright); padding:4px 9px; border-radius:6px;
+    border:1px solid rgba(60,201,60,0.3); align-self:flex-start;
+  }
+  .tile-add-meta{
+    aspect-ratio:auto; min-height:180px; align-items:center; justify-content:center; flex-direction:row; gap:8px;
+    border:1px dashed var(--border-hover); background:transparent; cursor:pointer;
+  }
+  .tile-add-meta:hover{ border-color: var(--green-bright); transform:none; box-shadow:none; }
+  .tile-add-meta span{ font-family: var(--font-display); font-size:13px; letter-spacing:0.5px; text-transform:uppercase; color: var(--text-secondary); }
+  .tile-add-meta:hover span{ color: var(--green-bright); }
+
+  /* ===== ESTADÍSTICAS ===== */
+  .stats-row{ display:grid; grid-template-columns: 1fr 1fr; gap:18px; }
+  .stats-card{ padding:24px; }
+  .chart-wrap{ position:relative; height:260px; margin-top:6px; }
+
+  @media (max-width: 980px){
+    .stats-row{ grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -454,15 +496,22 @@
 
   <!-- ===== VISTA: METAS ===== -->
   <div class="tab-view hidden" id="view-metas">
-    <div class="card" style="padding:40px; text-align:center;">
-      <p style="color:var(--text-secondary); font-size:14px;">El módulo de metas de ahorro está en construcción. Pronto vas a poder fijar objetivos y seguir tu progreso acá.</p>
-    </div>
+    <div class="section-title"><h2>Tus metas de ahorro</h2></div>
+    <div class="tile-grid" id="metas-grid" style="grid-template-columns: repeat(3, 1fr);"></div>
   </div>
 
   <!-- ===== VISTA: ESTADÍSTICAS ===== -->
   <div class="tab-view hidden" id="view-estadisticas">
-    <div class="card" style="padding:40px; text-align:center;">
-      <p style="color:var(--text-secondary); font-size:14px;">Los gráficos de estadísticas están en construcción. Pronto vas a ver tu gasto por categoría y por mes.</p>
+    <div class="stats-row">
+      <div class="card stats-card">
+        <div class="section-title" style="margin-top:0;"><h2>Gasto por categoría (este mes)</h2></div>
+        <div class="chart-wrap"><canvas id="chart-categorias"></canvas></div>
+        <div id="stats-empty-cat" class="activity-empty hidden">Todavía no hay gastos este mes para graficar.</div>
+      </div>
+      <div class="card stats-card">
+        <div class="section-title" style="margin-top:0;"><h2>Ingresos vs gastos (6 meses)</h2></div>
+        <div class="chart-wrap"><canvas id="chart-meses"></canvas></div>
+      </div>
     </div>
   </div>
 
@@ -470,15 +519,15 @@
 
 <button class="fab hidden" id="fab-add">+</button>
 
-<!-- ===== MODAL: CONFIRMAR BORRADO ===== -->
+<!-- ===== MODAL: CONFIRMAR BORRADO (genérico: movimiento o meta) ===== -->
 <div class="modal-overlay hidden" id="modal-confirmar-borrado">
   <div class="modal-box" style="max-width:360px;">
     <div class="modal-header">
-      <h3>Borrar movimiento</h3>
+      <h3 id="modal-borrar-title">Borrar movimiento</h3>
       <span class="modal-close" id="close-modal-borrar">&times;</span>
     </div>
     <p style="font-size:14px; color:var(--text-secondary); margin-bottom:20px; line-height:1.5;">
-      Esta acción no se puede deshacer. ¿Confirmás que querés borrar este movimiento?
+      Esta acción no se puede deshacer. ¿Confirmás que querés borrar esto?
     </p>
     <div style="display:flex; gap:10px;">
       <button type="button" class="submit-btn" id="cancelar-borrado" style="background:rgba(255,255,255,0.06); color:var(--text-primary); box-shadow:none;">
@@ -491,6 +540,57 @@
     </div>
   </div>
 </div>
+
+<!-- ===== MODAL: NUEVA META ===== -->
+<div class="modal-overlay hidden" id="modal-meta">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Nueva meta de ahorro</h3>
+      <span class="modal-close" id="close-modal-meta">&times;</span>
+    </div>
+    <form id="form-meta">
+      <div class="field">
+        <label>Nombre</label>
+        <input type="text" id="meta-nombre" placeholder="Ej: Notebook nueva" required maxlength="30">
+      </div>
+      <div class="field">
+        <label>Monto objetivo</label>
+        <input type="number" id="meta-objetivo" placeholder="0" min="1" step="0.01" required>
+      </div>
+      <div class="field">
+        <label>Fecha límite (opcional)</label>
+        <input type="date" id="meta-fecha">
+      </div>
+      <button type="submit" class="submit-btn" id="submit-meta-btn">
+        <span class="spinner-sm"></span>
+        <span class="btn-text">Crear meta</span>
+      </button>
+      <div class="modal-alert" id="alert-meta"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== MODAL: APORTAR A META ===== -->
+<div class="modal-overlay hidden" id="modal-aporte">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="modal-aporte-title">Aportar a la meta</h3>
+      <span class="modal-close" id="close-modal-aporte">&times;</span>
+    </div>
+    <form id="form-aporte">
+      <div class="field">
+        <label>Monto a aportar</label>
+        <input type="number" id="aporte-monto" placeholder="0" min="0.01" step="0.01" required>
+      </div>
+      <button type="submit" class="submit-btn" id="submit-aporte-btn">
+        <span class="spinner-sm"></span>
+        <span class="btn-text">Aportar</span>
+      </button>
+      <div class="modal-alert" id="alert-aporte"></div>
+    </form>
+  </div>
+</div>
+
 
 <!-- ===== MODAL: AGREGAR MOVIMIENTO ===== -->
 <div class="modal-overlay hidden" id="modal-movimiento">
@@ -584,11 +684,16 @@
   let categorias = [];
   let movimientosMes = [];
   let movimientosTodos = [];
+  let metas = [];
   let selectedTipo = 'gasto';
   let selectedEmoji = EMOJI_OPTIONS[0];
   let selectedColor = COLOR_OPTIONS[0];
   let editandoId = null;
   let borrandoId = null;
+  let borrandoTipo = 'movimiento'; // 'movimiento' | 'meta'
+  let aportandoMetaId = null;
+  let chartCategorias = null;
+  let chartMeses = null;
 
   // ===== PROTECCIÓN DE SESIÓN =====
   async function init(){
@@ -599,7 +704,7 @@
     }
     currentUser = data.session.user;
     setupProfile();
-    await Promise.all([loadCategorias(), loadMovimientos()]);
+    await Promise.all([loadCategorias(), loadMovimientos(), loadMetas()]);
     renderAll();
     document.getElementById('loading-screen').classList.add('hidden');
     document.getElementById('app-root').classList.remove('hidden');
@@ -618,6 +723,12 @@
     const { data, error } = await sb.from('categorias').select('*').order('created_at');
     if (error){ console.error(error); return; }
     categorias = data || [];
+  }
+
+  async function loadMetas(){
+    const { data, error } = await sb.from('metas').select('*').order('created_at', { ascending: false });
+    if (error){ console.error(error); return; }
+    metas = data || [];
   }
 
   async function loadMovimientos(){
@@ -646,6 +757,8 @@
     document.getElementById('view-' + tab).classList.remove('hidden');
     if (tab === 'movimientos') renderMovimientosView();
     if (tab === 'categorias') renderCategoriasFull();
+    if (tab === 'metas') renderMetas();
+    if (tab === 'estadisticas') renderEstadisticas();
   }
   document.querySelectorAll('.nav-pill').forEach(pill => {
     pill.addEventListener('click', () => switchTab(pill.dataset.tab));
@@ -849,7 +962,7 @@
       btn.addEventListener('click', () => openModalMovimiento(btn.dataset.edit));
     });
     list.querySelectorAll('[data-delete]').forEach(btn => {
-      btn.addEventListener('click', () => openModalBorrado(btn.dataset.delete));
+      btn.addEventListener('click', () => openModalBorrado(btn.dataset.delete, 'movimiento'));
     });
   }
 
@@ -857,9 +970,11 @@
   document.getElementById('filtro-categoria').addEventListener('change', renderMovimientosView);
   document.getElementById('filtro-rango').addEventListener('change', renderMovimientosView);
 
-  // ===== MODAL: BORRAR MOVIMIENTO =====
-  function openModalBorrado(id){
+  // ===== MODAL: BORRAR (genérico) =====
+  function openModalBorrado(id, tipo){
     borrandoId = id;
+    borrandoTipo = tipo || 'movimiento';
+    document.getElementById('modal-borrar-title').textContent = borrandoTipo === 'meta' ? 'Borrar meta' : 'Borrar movimiento';
     document.getElementById('modal-confirmar-borrado').classList.remove('hidden');
   }
   function closeModalBorrado(){
@@ -873,14 +988,20 @@
     const btn = document.getElementById('confirmar-borrado');
     btn.disabled = true; btn.classList.add('loading');
 
-    const { error } = await sb.from('movimientos').delete().eq('id', borrandoId);
+    const tabla = borrandoTipo === 'meta' ? 'metas' : 'movimientos';
+    const { error } = await sb.from(tabla).delete().eq('id', borrandoId);
 
     btn.disabled = false; btn.classList.remove('loading');
     if (error){ console.error(error); closeModalBorrado(); return; }
 
-    await loadMovimientos();
-    renderAll();
-    renderMovimientosView();
+    if (borrandoTipo === 'meta'){
+      await loadMetas();
+      renderMetas();
+    } else {
+      await loadMovimientos();
+      renderAll();
+      renderMovimientosView();
+    }
     closeModalBorrado();
   });
 
@@ -1036,6 +1157,255 @@
     renderCategorias();
     closeModalCategoria();
   });
+
+  // ===== METAS =====
+  function renderMetas(){
+    const grid = document.getElementById('metas-grid');
+
+    const tarjetas = metas.map(meta => {
+      const objetivo = Number(meta.monto_objetivo);
+      const actual = Number(meta.monto_actual);
+      const pct = objetivo > 0 ? Math.min(100, Math.round((actual / objetivo) * 100)) : 0;
+      const completa = actual >= objetivo;
+      const r = 42, circ = 2 * Math.PI * r;
+      const dash = circ * (pct / 100);
+
+      return `
+        <div class="card meta-tile">
+          <div class="meta-tile-top">
+            <div>
+              <div class="meta-tile-name">${escapeHtml(meta.nombre)}</div>
+              ${meta.fecha_limite ? `<div style="font-size:11px; color:var(--text-secondary); margin-top:3px;">Antes del ${new Date(meta.fecha_limite + 'T00:00:00').toLocaleDateString('es-AR', { day:'numeric', month:'short', year:'numeric' })}</div>` : ''}
+            </div>
+            <div class="meta-tile-actions">
+              <div class="row-action-btn" data-aportar="${meta.id}" title="Aportar">+</div>
+              <div class="row-action-btn danger" data-borrar-meta="${meta.id}" title="Borrar">✕</div>
+            </div>
+          </div>
+
+          ${completa ? '<div class="meta-complete-badge">Meta cumplida</div>' : ''}
+
+          <div class="meta-ring-wrap">
+            <svg width="110" height="110" viewBox="0 0 110 110">
+              <circle cx="55" cy="55" r="${r}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="10"/>
+              <circle cx="55" cy="55" r="${r}" fill="none" stroke="${completa ? '#3CC93C' : '#107C10'}" stroke-width="10"
+                stroke-dasharray="${dash} ${circ}" stroke-linecap="round" transform="rotate(-90 55 55)"
+                style="filter: drop-shadow(0 0 6px ${completa ? 'rgba(60,201,60,0.5)' : 'rgba(16,124,16,0.4)'});"/>
+              <text x="55" y="60" text-anchor="middle" font-family="'Chakra Petch', sans-serif" font-weight="700" font-size="20" fill="#F2F2F2">${pct}%</text>
+            </svg>
+          </div>
+
+          <div class="meta-tile-amounts">
+            <b>$${fmt(actual)} <span style="color:var(--text-secondary); font-weight:400;">/ $${fmt(objetivo)}</span></b>
+            ${completa ? 'Objetivo alcanzado' : 'Faltan $' + fmt(objetivo - actual)}
+          </div>
+
+          ${!completa ? `<button class="meta-add-btn" data-aportar-btn="${meta.id}">+ Aportar dinero</button>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    grid.innerHTML = tarjetas + `
+      <div class="card tile-add-meta" id="btn-add-meta">
+        <span style="font-size:22px; color:var(--text-secondary)">+</span>
+        <span>Nueva meta</span>
+      </div>
+    `;
+
+    document.getElementById('btn-add-meta').addEventListener('click', openModalMeta);
+    grid.querySelectorAll('[data-aportar], [data-aportar-btn]').forEach(btn => {
+      btn.addEventListener('click', () => openModalAporte(btn.dataset.aportar || btn.dataset.aportarBtn));
+    });
+    grid.querySelectorAll('[data-borrar-meta]').forEach(btn => {
+      btn.addEventListener('click', () => openModalBorrado(btn.dataset.borrarMeta, 'meta'));
+    });
+  }
+
+  function openModalMeta(){
+    document.getElementById('modal-meta').classList.remove('hidden');
+  }
+  function closeModalMeta(){
+    document.getElementById('modal-meta').classList.add('hidden');
+    document.getElementById('form-meta').reset();
+    document.getElementById('alert-meta').className = 'modal-alert';
+  }
+  document.getElementById('close-modal-meta').addEventListener('click', closeModalMeta);
+  document.getElementById('modal-meta').addEventListener('click', (e) => {
+    if (e.target.id === 'modal-meta') closeModalMeta();
+  });
+
+  document.getElementById('form-meta').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('submit-meta-btn');
+    const alertBox = document.getElementById('alert-meta');
+    alertBox.className = 'modal-alert';
+
+    const nombre = document.getElementById('meta-nombre').value.trim();
+    const objetivo = parseFloat(document.getElementById('meta-objetivo').value);
+    const fecha = document.getElementById('meta-fecha').value || null;
+
+    if (!nombre || !objetivo || objetivo <= 0){
+      alertBox.textContent = 'Completá un nombre y un monto objetivo válido.';
+      alertBox.classList.add('show','error');
+      return;
+    }
+
+    btn.disabled = true; btn.classList.add('loading');
+    const { error } = await sb.from('metas').insert({
+      user_id: currentUser.id, nombre, monto_objetivo: objetivo, monto_actual: 0, fecha_limite: fecha
+    });
+    btn.disabled = false; btn.classList.remove('loading');
+
+    if (error){
+      alertBox.textContent = 'No se pudo crear la meta. Probá de nuevo.';
+      alertBox.classList.add('show','error');
+      return;
+    }
+
+    await loadMetas();
+    renderMetas();
+    closeModalMeta();
+  });
+
+  function openModalAporte(metaId){
+    aportandoMetaId = metaId;
+    const meta = metas.find(m => m.id === metaId);
+    document.getElementById('modal-aporte-title').textContent = meta ? `Aportar a "${meta.nombre}"` : 'Aportar a la meta';
+    document.getElementById('modal-aporte').classList.remove('hidden');
+  }
+  function closeModalAporte(){
+    aportandoMetaId = null;
+    document.getElementById('modal-aporte').classList.add('hidden');
+    document.getElementById('form-aporte').reset();
+    document.getElementById('alert-aporte').className = 'modal-alert';
+  }
+  document.getElementById('close-modal-aporte').addEventListener('click', closeModalAporte);
+  document.getElementById('modal-aporte').addEventListener('click', (e) => {
+    if (e.target.id === 'modal-aporte') closeModalAporte();
+  });
+
+  document.getElementById('form-aporte').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!aportandoMetaId) return;
+    const btn = document.getElementById('submit-aporte-btn');
+    const alertBox = document.getElementById('alert-aporte');
+    alertBox.className = 'modal-alert';
+
+    const monto = parseFloat(document.getElementById('aporte-monto').value);
+    if (!monto || monto <= 0){
+      alertBox.textContent = 'Ingresá un monto válido.';
+      alertBox.classList.add('show','error');
+      return;
+    }
+
+    const meta = metas.find(m => m.id === aportandoMetaId);
+    const nuevoMonto = Number(meta.monto_actual) + monto;
+
+    btn.disabled = true; btn.classList.add('loading');
+    const { error } = await sb.from('metas').update({ monto_actual: nuevoMonto }).eq('id', aportandoMetaId);
+    btn.disabled = false; btn.classList.remove('loading');
+
+    if (error){
+      alertBox.textContent = 'No se pudo registrar el aporte. Probá de nuevo.';
+      alertBox.classList.add('show','error');
+      return;
+    }
+
+    await loadMetas();
+    renderMetas();
+    closeModalAporte();
+  });
+
+  // ===== ESTADÍSTICAS =====
+  const CHART_COLORS = ['#3CC93C','#85B7EB','#FAC775','#ED93B1','#AFA9EC','#5DCAA5','#7F77DD','#F0997B'];
+
+  function renderEstadisticas(){
+    renderChartCategorias();
+    renderChartMeses();
+  }
+
+  function renderChartCategorias(){
+    const gastosPorCategoria = {};
+    movimientosMes.filter(m => m.tipo === 'gasto').forEach(m => {
+      gastosPorCategoria[m.categoria] = (gastosPorCategoria[m.categoria] || 0) + Number(m.monto);
+    });
+    const labels = Object.keys(gastosPorCategoria);
+    const valores = Object.values(gastosPorCategoria);
+
+    const emptyMsg = document.getElementById('stats-empty-cat');
+    const canvas = document.getElementById('chart-categorias');
+
+    if (labels.length === 0){
+      emptyMsg.classList.remove('hidden');
+      canvas.classList.add('hidden');
+      if (chartCategorias){ chartCategorias.destroy(); chartCategorias = null; }
+      return;
+    }
+    emptyMsg.classList.add('hidden');
+    canvas.classList.remove('hidden');
+
+    const colores = labels.map(nombre => {
+      const cat = categorias.find(c => c.nombre === nombre);
+      return cat ? cat.color : '#85B7EB';
+    });
+
+    if (chartCategorias) chartCategorias.destroy();
+    chartCategorias = new Chart(canvas, {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: valores, backgroundColor: colores, borderColor: '#0a0a0a', borderWidth: 2 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#8C8C8C', font: { family: 'Inter', size: 11 }, padding: 12 } },
+          tooltip: { callbacks: { label: (ctx) => ' $' + Math.round(ctx.parsed).toLocaleString('es-AR') } }
+        }
+      }
+    });
+  }
+
+  function renderChartMeses(){
+    const meses = [];
+    const hoy = new Date();
+    for (let i = 5; i >= 0; i--){
+      const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+      meses.push({ year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString('es-AR', { month: 'short' }) });
+    }
+
+    const ingresosPorMes = meses.map(({year, month}) =>
+      movimientosTodos
+        .filter(m => m.tipo === 'ingreso' && new Date(m.fecha + 'T00:00:00').getFullYear() === year && new Date(m.fecha + 'T00:00:00').getMonth() === month)
+        .reduce((s,m) => s + Number(m.monto), 0)
+    );
+    const gastosPorMes = meses.map(({year, month}) =>
+      movimientosTodos
+        .filter(m => m.tipo === 'gasto' && new Date(m.fecha + 'T00:00:00').getFullYear() === year && new Date(m.fecha + 'T00:00:00').getMonth() === month)
+        .reduce((s,m) => s + Number(m.monto), 0)
+    );
+
+    const canvas = document.getElementById('chart-meses');
+    if (chartMeses) chartMeses.destroy();
+    chartMeses = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: meses.map(m => m.label),
+        datasets: [
+          { label: 'Ingresos', data: ingresosPorMes, backgroundColor: '#3CC93C', borderRadius: 4 },
+          { label: 'Gastos', data: gastosPorMes, backgroundColor: '#E5484D', borderRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          x: { ticks: { color: '#8C8C8C', font: { family: 'Inter', size: 11 } }, grid: { display: false } },
+          y: { ticks: { color: '#8C8C8C', font: { family: 'Inter', size: 11 }, callback: (v) => '$' + v.toLocaleString('es-AR') }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#8C8C8C', font: { family: 'Inter', size: 11 }, padding: 12 } },
+          tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: $${Math.round(ctx.parsed.y).toLocaleString('es-AR')}` } }
+        }
+      }
+    });
+  }
 
   // ===== LOGOUT =====
   document.getElementById('logout-btn').addEventListener('click', async () => {
