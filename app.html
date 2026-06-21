@@ -202,6 +202,23 @@
   .tile-add span{ font-family: var(--font-display); font-size:13px; letter-spacing:0.5px; text-transform:uppercase; color: var(--text-secondary); }
   .tile-add:hover span{ color: var(--green-bright); }
 
+  /* ===== MINI TILES — vista previa compacta en Resumen ===== */
+  .mini-tile-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; }
+  .mini-tile{
+    aspect-ratio: auto; padding: 14px 16px; flex-direction: row; align-items:center; gap:12px;
+    cursor: default;
+  }
+  .mini-tile-icon{
+    width:36px; height:36px; border-radius:9px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:16px;
+    background: rgba(255,255,255,0.05);
+  }
+  .mini-tile-info{ flex:1; min-width:0; }
+  .mini-tile-name{ font-family: var(--font-display); font-weight:600; font-size:13px; }
+  .mini-tile-amount{ font-size:15px; font-weight:700; margin-top:2px; }
+  .mini-tile-bar{ height:3px; background:rgba(255,255,255,0.08); border-radius:3px; margin-top:6px; overflow:hidden; }
+  .mini-tile-bar i{ display:block; height:100%; border-radius:3px; }
+
   /* ===== ACTIVITY LIST ===== */
   .activity-card{ padding: 6px 8px; }
   .activity-row{
@@ -299,6 +316,7 @@
     .hero-row{ grid-template-columns: 1fr; }
     .tile-grid{ grid-template-columns: repeat(2, 1fr); }
     #metas-grid{ grid-template-columns: repeat(2, 1fr) !important; }
+    .mini-tile-grid{ grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 600px){
     body{ padding: 16px 16px 90px; }
@@ -307,6 +325,7 @@
     .hero-amount{ font-size:36px; }
     .tile-grid{ grid-template-columns: repeat(2, 1fr); gap:12px; }
     #metas-grid{ grid-template-columns: 1fr !important; }
+    .mini-tile-grid{ grid-template-columns: 1fr; }
   }  /* ===== TAB VIEWS ===== */
   .tab-view{ animation: fadeIn .25s ease; }
   @keyframes fadeIn{ from{ opacity:0; transform: translateY(6px); } to{ opacity:1; transform: translateY(0); } }
@@ -451,7 +470,7 @@
     <h2>Categorías activas</h2>
   </div>
 
-  <div class="tile-grid" id="tile-grid"></div>
+  <div class="mini-tile-grid" id="tile-grid"></div>
 
   <div class="section-title">
     <h2>Actividad reciente</h2>
@@ -815,29 +834,35 @@
     const grid = document.getElementById('tile-grid');
     const totalGastos = movimientosMes.filter(m => m.tipo === 'gasto').reduce((s,m) => s + Number(m.monto), 0);
 
-    grid.innerHTML = categorias.map(cat => {
-      const gastoCategoria = movimientosMes
-        .filter(m => m.tipo === 'gasto' && m.categoria === cat.nombre)
-        .reduce((s,m) => s + Number(m.monto), 0);
+    const conActividad = categorias
+      .map(cat => {
+        const gastoCategoria = movimientosMes
+          .filter(m => m.tipo === 'gasto' && m.categoria === cat.nombre)
+          .reduce((s,m) => s + Number(m.monto), 0);
+        return { cat, gastoCategoria };
+      })
+      .filter(({ gastoCategoria }) => gastoCategoria > 0)
+      .sort((a, b) => b.gastoCategoria - a.gastoCategoria);
+
+    if (conActividad.length === 0){
+      grid.innerHTML = '<div class="activity-empty" style="grid-column: 1 / -1;">Todavía no hay gastos este mes por categoría. Se van a ver acá apenas cargues el primero.</div>';
+      return;
+    }
+
+    grid.innerHTML = conActividad.map(({ cat, gastoCategoria }) => {
       const pct = totalGastos > 0 ? Math.round((gastoCategoria/totalGastos)*100) : 0;
 
       return `
-        <div class="card tile" style="position:relative;">
-          <div class="tile-glyph" style="color:${cat.color}">${cat.icono}</div>
-          <div class="tile-name">${escapeHtml(cat.nombre)}</div>
-          <div class="tile-amount" style="color:${cat.color}">$${fmt(gastoCategoria)}</div>
-          <div class="tile-percent">${pct}% del gasto</div>
-          <div class="tile-bar"><i style="width:${pct}%; background:${cat.color}"></i></div>
+        <div class="card mini-tile">
+          <div class="mini-tile-icon" style="color:${cat.color}">${cat.icono}</div>
+          <div class="mini-tile-info">
+            <div class="mini-tile-name">${escapeHtml(cat.nombre)}</div>
+            <div class="mini-tile-amount" style="color:${cat.color}">$${fmt(gastoCategoria)}</div>
+            <div class="mini-tile-bar"><i style="width:${pct}%; background:${cat.color}"></i></div>
+          </div>
         </div>
       `;
-    }).join('') + `
-      <div class="card tile tile-add" id="btn-add-categoria">
-        <span style="font-size:22px; color:var(--text-secondary)">+</span>
-        <span>Nueva categoría</span>
-      </div>
-    `;
-
-    document.getElementById('btn-add-categoria').addEventListener('click', openModalCategoria);
+    }).join('');
   }
 
   // Misma lógica que renderCategorias pero para la vista dedicada "Categorías" (usa todo el historial, no solo el mes)
